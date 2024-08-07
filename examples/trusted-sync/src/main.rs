@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::Parser;
 use kona_derive::{online::*, types::StageError};
 use std::sync::Arc;
+use superchain_registry::ROLLUP_CONFIGS;
 use tracing::{debug, error, info, trace, warn};
 
 mod cli;
@@ -46,8 +47,7 @@ async fn sync(cli: cli::Cli) -> Result<()> {
     let l2_chain_id =
         l2_provider.chain_id().await.expect("Failed to fetch chain ID from L2 provider");
     metrics::CHAIN_ID.inc_by(l2_chain_id);
-    let cfg = RollupConfig::from_l2_chain_id(l2_chain_id)
-        .expect("Failed to fetch rollup config from L2 chain ID");
+    let cfg = ROLLUP_CONFIGS.get(&l2_chain_id).expect("Failed to get rollup config from the superchain registry for the provider's l2 chain id").clone();
     let cfg = Arc::new(cfg);
     metrics::GENESIS_L2_BLOCK.inc_by(cfg.genesis.l2.number);
 
@@ -71,9 +71,10 @@ async fn sync(cli: cli::Cli) -> Result<()> {
     let mut l2_provider = AlloyL2ChainProvider::new_http(l2_rpc_url.clone(), cfg.clone());
     let attributes =
         StatefulAttributesBuilder::new(cfg.clone(), l2_provider.clone(), l1_provider.clone());
-    let beacon_client = OnlineBeaconClient::new_http(beacon_url);
-    let blob_provider =
-        OnlineBlobProvider::<_, SimpleSlotDerivation>::new(beacon_client, None, None);
+    let blob_provider = OnlineBlobProviderBuilder::new()
+        .with_primary(beacon_url)
+        .with_fallback(cli.blob_archiver_url())
+        .build();
     let dap = EthereumDataSource::new(l1_provider.clone(), blob_provider, &cfg);
     let mut cursor = l2_provider
         .l2_block_info_by_number(start)
@@ -92,6 +93,7 @@ async fn sync(cli: cli::Cli) -> Result<()> {
     // Reset metrics so they can be queried.
     metrics::FAILED_PAYLOAD_DERIVATION.reset();
     metrics::DRIFT_WALKBACK.set(0);
+    metrics::RETRIES.reset();
     metrics::DRIFT_WALKBACK_TIMESTAMP.set(0);
     metrics::DERIVED_ATTRIBUTES_COUNT.reset();
     metrics::FAST_FORWARD_BLOCK.set(0);
@@ -99,6 +101,7 @@ async fn sync(cli: cli::Cli) -> Result<()> {
 
     // Continuously step on the pipeline and validate payloads.
     let mut advance_cursor_flag = false;
+    let mut retries = 0;
     loop {
         // Update the reference l2 head.
         match l2_provider.latest_block_number().await {
@@ -132,10 +135,12 @@ async fn sync(cli: cli::Cli) -> Result<()> {
                         metrics::FAST_FORWARD_BLOCK.set(cursor.block_info.number as i64);
                         metrics::FAST_FORWARD_TIMESTAMP.set(timestamp as i64);
                         if let Ok(c) = l2_provider.l2_block_info_by_number(latest - 100).await {
-                            let l1_block_info = l1_provider
-                                .block_info_by_number(c.l1_origin.number)
-                                .await
-                                .expect("Failed to fetch L1 block info for fast forward");
+                            let Ok(l1_block_info) =
+                                l1_provider.block_info_by_number(c.l1_origin.number).await
+                            else {
+                                error!(target: LOG_TARGET, "Failed to fetch L2 block info for fast forward");
+                                continue;
+                            };
                             info!(target: LOG_TARGET, "Resetting pipeline with l1 block info: {:?}", l1_block_info);
                             if let Err(e) = pipeline.reset(c.block_info, l1_block_info).await {
                                 error!(target: LOG_TARGET, "Failed to reset pipeline: {:?}", e);
@@ -157,10 +162,12 @@ async fn sync(cli: cli::Cli) -> Result<()> {
                             .l2_block_info_by_number(cursor.block_info.number - 100)
                             .await
                         {
-                            let l1_block_info = l1_provider
-                                .block_info_by_number(c.l1_origin.number)
-                                .await
-                                .expect("Failed to fetch L1 block info for fast forward");
+                            let Ok(l1_block_info) =
+                                l1_provider.block_info_by_number(c.l1_origin.number).await
+                            else {
+                                error!(target: LOG_TARGET, "Failed to fetch L2 block info for walkback");
+                                continue;
+                            };
                             info!(target: LOG_TARGET, "Resetting pipeline with l1 block info: {:?}", l1_block_info);
                             if let Err(e) = pipeline.reset(c.block_info, l1_block_info).await {
                                 error!(target: LOG_TARGET, "Failed to reset pipeline: {:?}", e);
@@ -226,6 +233,20 @@ async fn sync(cli: cli::Cli) -> Result<()> {
                 Ok((true, _)) => trace!(target: LOG_TARGET, "Validated payload attributes"),
                 Ok((false, expected)) => {
                     error!(target: LOG_TARGET, "Failed payload validation. Derived payload attributes: {:?}, Expected: {:?}", attributes, expected);
+                    // Attempt to re-validate payload attributes if we haven't reached the retry
+                    // limit. Since validation didn't error, either this is hit
+                    // because:
+                    // - The payload attributes are actually invalid
+                    // - Validation returned a flakey result (e.g. `debug_getRawTransaction` returns
+                    //   empty bytes which has been seen on multiple occurances)
+                    if retries < cli.invalid_payload_retries {
+                        retries += 1;
+                        metrics::RETRIES.inc();
+                        // Back-off for a few seconds before retrying.
+                        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                        continue;
+                    }
+                    retries = 0;
                     metrics::FAILED_PAYLOAD_DERIVATION.inc();
                     let _ = pipeline.next(); // Take the attributes and continue
                     continue;
@@ -240,6 +261,7 @@ async fn sync(cli: cli::Cli) -> Result<()> {
             debug!(target: LOG_TARGET, "No attributes to validate");
             continue;
         };
+        retries = 0;
 
         // Take the next attributes from the pipeline since they're valid.
         let attributes = if let Some(attributes) = pipeline.next() {
