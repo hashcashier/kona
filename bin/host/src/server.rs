@@ -63,7 +63,10 @@ where
         // Spawn tasks for the futures and wait for them to complete.
         let server = tokio::task::spawn(server_fut);
         let hint_router = tokio::task::spawn(hinter_fut);
-        tokio::try_join!(server, hint_router).map_err(|e| anyhow!(e))?;
+        tokio::select! {
+            s = server => s.map_err(|e| anyhow!(e))?,
+            h = hint_router => h.map_err(|e| anyhow!(e))?,
+        }
 
         Ok(())
     }
@@ -82,8 +85,7 @@ where
             P: PreimageOracleServer,
         {
             loop {
-                // TODO: More granular error handling. Some errors here are expected, such as the
-                // client closing the pipe, while others are not and should throw.
+                // Break the loop on any error. An error in this path indicates a closed pipe.
                 if server.next_preimage_request(fetcher).await.is_err() {
                     break;
                 }
@@ -107,8 +109,7 @@ where
             H: HintReaderServer,
         {
             loop {
-                // TODO: More granular error handling. Some errors here are expected, such as the
-                // client closing the pipe, while others are not and should throw.
+                // Break the loop on any error. An error in this path indicates a closed pipe.
                 if server.next_hint(router).await.is_err() {
                     break;
                 }

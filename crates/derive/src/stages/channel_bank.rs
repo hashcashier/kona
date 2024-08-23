@@ -3,11 +3,11 @@
 use crate::{
     params::{ChannelID, MAX_CHANNEL_BANK_SIZE},
     stages::ChannelReaderProvider,
-    traits::{OriginAdvancer, OriginProvider, PreviousStage, ResettableStage},
+    traits::{OriginAdvancer, OriginProvider, ResettableStage},
     types::{BlockInfo, Channel, Frame, RollupConfig, StageError, StageResult, SystemConfig},
 };
 use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
-use alloy_primitives::Bytes;
+use alloy_primitives::{hex, Bytes};
 use anyhow::anyhow;
 use async_trait::async_trait;
 use core::fmt::Debug;
@@ -37,7 +37,7 @@ pub trait ChannelBankProvider {
 #[derive(Debug)]
 pub struct ChannelBank<P>
 where
-    P: ChannelBankProvider + PreviousStage + Debug,
+    P: ChannelBankProvider + OriginAdvancer + OriginProvider + ResettableStage + Debug,
 {
     /// The rollup configuration.
     cfg: Arc<RollupConfig>,
@@ -51,7 +51,7 @@ where
 
 impl<P> ChannelBank<P>
 where
-    P: ChannelBankProvider + PreviousStage + Debug,
+    P: ChannelBankProvider + OriginAdvancer + OriginProvider + ResettableStage + Debug,
 {
     /// Create a new [ChannelBank] stage.
     pub fn new(cfg: Arc<RollupConfig>, prev: P) -> Self {
@@ -88,8 +88,13 @@ where
         });
 
         // Check if the channel is not timed out. If it has, ignore the frame.
-        if current_channel.open_block_number() + self.cfg.channel_timeout < origin.number {
-            warn!(target: "channel-bank", "Channel {:?} timed out", frame.id);
+        if current_channel.open_block_number() + self.cfg.channel_timeout(origin.timestamp) <
+            origin.number
+        {
+            warn!(
+                target: "channel-bank",
+                "Channel (ID: {}) timed out", hex::encode(frame.id)
+            );
             return Ok(());
         }
 
@@ -130,8 +135,12 @@ where
         let first = self.channel_queue[0];
         let channel = self.channels.get(&first).ok_or(StageError::ChannelNotFound)?;
         let origin = self.origin().ok_or(StageError::MissingOrigin)?;
-        if channel.open_block_number() + self.cfg.channel_timeout < origin.number {
-            warn!(target: "channel-bank", "Channel {:?} timed out", first);
+        if channel.open_block_number() + self.cfg.channel_timeout(origin.timestamp) < origin.number
+        {
+            warn!(
+                target: "channel-bank",
+                "Channel (ID: {}) timed out", hex::encode(first)
+            );
             crate::observe!(CHANNEL_TIMEOUTS, (origin.number - channel.open_block_number()) as f64);
             self.channels.remove(&first);
             self.channel_queue.pop_front();
@@ -172,7 +181,8 @@ where
         let channel = self.channels.get(&channel_id).ok_or(StageError::ChannelNotFound)?;
         let origin = self.origin().ok_or(StageError::MissingOrigin)?;
 
-        let timed_out = channel.open_block_number() + self.cfg.channel_timeout < origin.number;
+        let timed_out = channel.open_block_number() + self.cfg.channel_timeout(origin.timestamp) <
+            origin.number;
         if timed_out || !channel.is_ready() {
             return Err(StageError::Eof);
         }
@@ -188,7 +198,7 @@ where
 #[async_trait]
 impl<P> OriginAdvancer for ChannelBank<P>
 where
-    P: ChannelBankProvider + PreviousStage + Send + Debug,
+    P: ChannelBankProvider + OriginAdvancer + OriginProvider + ResettableStage + Send + Debug,
 {
     async fn advance_origin(&mut self) -> StageResult<()> {
         self.prev.advance_origin().await
@@ -198,7 +208,7 @@ where
 #[async_trait]
 impl<P> ChannelReaderProvider for ChannelBank<P>
 where
-    P: ChannelBankProvider + PreviousStage + Send + Debug,
+    P: ChannelBankProvider + OriginAdvancer + OriginProvider + ResettableStage + Send + Debug,
 {
     async fn next_data(&mut self) -> StageResult<Option<Bytes>> {
         crate::timer!(START, STAGE_ADVANCE_RESPONSE_TIME, &["channel_bank"], timer);
@@ -230,26 +240,17 @@ where
 
 impl<P> OriginProvider for ChannelBank<P>
 where
-    P: ChannelBankProvider + PreviousStage + Debug,
+    P: ChannelBankProvider + OriginAdvancer + OriginProvider + ResettableStage + Debug,
 {
     fn origin(&self) -> Option<BlockInfo> {
         self.prev.origin()
     }
 }
 
-impl<P> PreviousStage for ChannelBank<P>
-where
-    P: ChannelBankProvider + PreviousStage + Debug + Send,
-{
-    fn previous(&self) -> Option<Box<&dyn PreviousStage>> {
-        Some(Box::new(&self.prev))
-    }
-}
-
 #[async_trait]
 impl<P> ResettableStage for ChannelBank<P>
 where
-    P: ChannelBankProvider + PreviousStage + Send + Debug,
+    P: ChannelBankProvider + OriginAdvancer + OriginProvider + ResettableStage + Send + Debug,
 {
     async fn reset(
         &mut self,
@@ -272,6 +273,7 @@ mod tests {
         test_utils::{CollectingLayer, MockChannelBankProvider, TraceStorage},
     };
     use alloc::vec;
+    use kona_primitives::{BASE_MAINNET_CONFIG, OP_MAINNET_CONFIG};
     use tracing::Level;
     use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -345,5 +347,49 @@ mod tests {
         assert_eq!(err, StageError::Eof);
         let err = channel_bank.next_data().await.unwrap_err();
         assert_eq!(err, StageError::NotEnoughData);
+    }
+
+    #[tokio::test]
+    async fn test_channel_timeout() {
+        let trace_store: TraceStorage = Default::default();
+        let layer = CollectingLayer::new(trace_store.clone());
+        tracing_subscriber::Registry::default().with(layer).init();
+
+        const ROLLUP_CONFIGS: [RollupConfig; 2] = [OP_MAINNET_CONFIG, BASE_MAINNET_CONFIG];
+
+        for cfg in ROLLUP_CONFIGS {
+            let frames = new_test_frames(2);
+            let mock = MockChannelBankProvider::new(frames.into_iter().map(Ok).collect::<Vec<_>>());
+            let cfg = Arc::new(cfg);
+            let mut channel_bank = ChannelBank::new(cfg.clone(), mock);
+
+            // Ingest first frame
+            let err = channel_bank.next_data().await.unwrap_err();
+            assert_eq!(err, StageError::NotEnoughData);
+
+            for _ in 0..cfg.channel_timeout + 1 {
+                channel_bank.advance_origin().await.unwrap();
+            }
+
+            // There should be an in-progress channel.
+            assert_eq!(channel_bank.channels.len(), 1);
+            assert_eq!(channel_bank.channel_queue.len(), 1);
+
+            // Should be `Ok(())`, channel timed out.
+            channel_bank.next_data().await.unwrap();
+
+            // The channel should have been pruned.
+            assert_eq!(channel_bank.channels.len(), 0);
+            assert_eq!(channel_bank.channel_queue.len(), 0);
+
+            // Ensure the channel was successfully timed out.
+            let (_, warning_trace) = trace_store
+                .lock()
+                .iter()
+                .find(|(l, _)| matches!(l, &Level::WARN))
+                .cloned()
+                .unwrap();
+            assert!(warning_trace.contains("timed out"));
+        }
     }
 }

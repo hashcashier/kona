@@ -7,7 +7,9 @@ use alloy_eips::{eip2718::Encodable2718, eip4844::FIELD_ELEMENTS_PER_BLOB, Block
 use alloy_primitives::{address, keccak256, Address, Bytes, B256};
 use alloy_provider::{Provider, ReqwestProvider};
 use alloy_rlp::Decodable;
-use alloy_rpc_types::{Block, BlockNumberOrTag, BlockTransactions, BlockTransactionsKind};
+use alloy_rpc_types::{
+    Block, BlockNumberOrTag, BlockTransactions, BlockTransactionsKind, Transaction,
+};
 use anyhow::{anyhow, Result};
 use kona_client::HintType;
 use kona_derive::{
@@ -65,6 +67,8 @@ where
 
     /// Get the preimage for the given key.
     pub async fn get_preimage(&self, key: B256) -> Result<Vec<u8>> {
+        const MAX_RETRIES: usize = 32;
+
         trace!(target: "fetcher", "Pre-image requested. Key: {key}");
 
         // Acquire a read lock on the key-value store.
@@ -75,12 +79,20 @@ where
         drop(kv_lock);
 
         // Use a loop to keep retrying the prefetch as long as the key is not found
+        let mut retries = 0;
         while preimage.is_none() && self.last_hint.is_some() {
+            if retries >= MAX_RETRIES {
+                tracing::error!(target: "fetcher", "Max retries exceeded.");
+                anyhow::bail!("Max retries exceeded.");
+            }
+
             let hint = self.last_hint.as_ref().expect("Cannot be None");
             self.prefetch(hint).await?;
 
             let kv_lock = self.kv_store.read().await;
             preimage = kv_lock.get(key);
+
+            retries += 1;
         }
 
         preimage.ok_or_else(|| anyhow!("Preimage not found."))
@@ -162,22 +174,19 @@ where
                     anyhow::bail!("Invalid hint data length: {}", hint_data.len());
                 }
 
-                let hash: B256 = hint_data[0..32]
-                    .as_ref()
+                let hash_data_bytes: [u8; 32] = hint_data[0..32]
                     .try_into()
                     .map_err(|e| anyhow!("Failed to convert bytes to B256: {e}"))?;
-                let index = u64::from_be_bytes(
-                    hint_data[32..40]
-                        .as_ref()
-                        .try_into()
-                        .map_err(|e| anyhow!("Failed to convert bytes to u64: {e}"))?,
-                );
-                let timestamp = u64::from_be_bytes(
-                    hint_data[40..48]
-                        .as_ref()
-                        .try_into()
-                        .map_err(|e| anyhow!("Failed to convert bytes to u64: {e}"))?,
-                );
+                let index_data_bytes: [u8; 8] = hint_data[32..40]
+                    .try_into()
+                    .map_err(|e| anyhow!("Failed to convert bytes to u64: {e}"))?;
+                let timestamp_data_bytes: [u8; 8] = hint_data[40..48]
+                    .try_into()
+                    .map_err(|e| anyhow!("Failed to convert bytes to u64: {e}"))?;
+
+                let hash: B256 = hash_data_bytes.into();
+                let index = u64::from_be_bytes(index_data_bytes);
+                let timestamp = u64::from_be_bytes(timestamp_data_bytes);
 
                 let partial_block_ref = BlockInfo { timestamp, ..Default::default() };
                 let indexed_hash = IndexedBlobHash { index: index as usize, hash };
@@ -505,7 +514,7 @@ where
     }
 
     /// Stores a list of [BlockTransactions] in the key-value store.
-    async fn store_transactions(&self, transactions: BlockTransactions) -> Result<()> {
+    async fn store_transactions(&self, transactions: BlockTransactions<Transaction>) -> Result<()> {
         match transactions {
             BlockTransactions::Full(transactions) => {
                 let encoded_transactions = transactions

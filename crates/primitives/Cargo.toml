@@ -16,8 +16,8 @@ alloy-primitives = { workspace = true, features = ["rlp"] }
 alloy-eips.workspace = true
 op-alloy-consensus.workspace = true
 
-# Superchain Registry
-superchain-primitives = { version = "0.2", default-features = false }
+# SCR Repo Primitives
+superchain-primitives = { version = "0.2.2", default-features = false }
 
 # Alloy Types
 alloy-sol-types = { version = "0.7.6", default-features = false }
