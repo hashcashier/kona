@@ -41,11 +41,11 @@ where
     L2P: L2ChainProvider + Debug,
 {
     /// The rollup config.
-    rollup_cfg: Arc<RollupConfig>,
+    pub rollup_cfg: Arc<RollupConfig>,
     /// The system config fetcher.
-    config_fetcher: L2P,
+    pub config_fetcher: L2P,
     /// The L1 receipts fetcher.
-    receipts_fetcher: L1P,
+    pub receipts_fetcher: L1P,
 }
 
 impl<L1P, L2P> StatefulAttributesBuilder<L1P, L2P>

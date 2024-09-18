@@ -20,9 +20,9 @@ use op_alloy_consensus::OpTxEnvelope;
 #[derive(Debug, Clone)]
 pub struct OracleL2ChainProvider<T: CommsClient> {
     /// The boot information
-    boot_info: Arc<BootInfo>,
+    pub boot_info: Arc<BootInfo>,
     /// The preimage oracle client.
-    oracle: Arc<T>,
+    pub oracle: Arc<T>,
 }
 
 impl<T: CommsClient> OracleL2ChainProvider<T> {

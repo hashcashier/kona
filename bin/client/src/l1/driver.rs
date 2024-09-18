@@ -63,11 +63,11 @@ where
     B: BlobProvider + Send + Sync + Debug + Clone,
 {
     /// The current L2 safe head.
-    l2_safe_head: L2BlockInfo,
+    pub l2_safe_head: L2BlockInfo,
     /// The header of the L2 safe head.
-    l2_safe_head_header: Sealed<Header>,
+    pub l2_safe_head_header: Sealed<Header>,
     /// The inner pipeline.
-    pipeline: OraclePipeline<O, B>,
+    pub pipeline: OraclePipeline<O, B>,
 }
 
 impl<O, B> DerivationDriver<O, B>
