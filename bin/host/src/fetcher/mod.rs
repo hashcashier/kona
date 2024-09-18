@@ -385,7 +385,9 @@ where
                 }
 
                 // Fetch the header for the L2 head block.
+                println!("LOCKING READ");
                 let l2_head = *self.l2_head.lock().await;
+                println!("LOCKED READ");
                 let raw_header: Bytes = self
                     .l2_provider
                     .client()
@@ -430,7 +432,9 @@ where
                     .try_into()
                     .map_err(|e| anyhow!("Failed to convert bytes to B256: {e}"))?;
 
+                println!("LOCKING WRITE");
                 *self.l2_head.lock().await = hash;
+                println!("LOCKED WRITE");
             }
             HintType::L2StateNode => {
                 if hint_data.len() != 32 {
