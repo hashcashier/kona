@@ -16,7 +16,7 @@ use kona_derive::online::{OnlineBeaconClient, OnlineBlobProvider, SimpleSlotDeri
 use kona_preimage::{PreimageKey, PreimageKeyType};
 use kona_primitives::{BlockInfo, IndexedBlobHash};
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 use tracing::trace;
 
 mod precompiles;
@@ -37,7 +37,7 @@ where
     /// TODO: OP provider, N = Optimism
     l2_provider: ReqwestProvider,
     /// L2 head
-    l2_head: B256,
+    l2_head: Mutex<B256>,
     /// The last hint that was received. [None] if no hint has been received yet.
     last_hint: Option<String>,
 }
@@ -54,7 +54,7 @@ where
         l2_provider: ReqwestProvider,
         l2_head: B256,
     ) -> Self {
-        Self { kv_store, l1_provider, blob_provider, l2_provider, l2_head, last_hint: None }
+        Self { kv_store, l1_provider, blob_provider, l2_provider, l2_head: Mutex::new(l2_head), last_hint: None }
     }
 
     /// Set the last hint to be received.
@@ -385,10 +385,11 @@ where
                 }
 
                 // Fetch the header for the L2 head block.
+                let l2_head = *self.l2_head.lock().await;
                 let raw_header: Bytes = self
                     .l2_provider
                     .client()
-                    .request("debug_getRawHeader", &[self.l2_head])
+                    .request("debug_getRawHeader", &[*l2_head])
                     .await
                     .map_err(|e| anyhow!("Failed to fetch header RLP: {e}"))?;
                 let header = Header::decode(&mut raw_header.as_ref())
@@ -398,7 +399,7 @@ where
                 let l2_to_l1_message_passer = self
                     .l2_provider
                     .get_proof(L2_TO_L1_MESSAGE_PASSER_ADDRESS, Default::default())
-                    .block_id(BlockId::Hash(self.l2_head.into()))
+                    .block_id(BlockId::Hash(l2_head.into()))
                     .await
                     .map_err(|e| anyhow!("Failed to fetch account proof: {e}"))?;
 
@@ -406,7 +407,7 @@ where
                 raw_output[31] = OUTPUT_ROOT_VERSION;
                 raw_output[32..64].copy_from_slice(header.state_root.as_ref());
                 raw_output[64..96].copy_from_slice(l2_to_l1_message_passer.storage_hash.as_ref());
-                raw_output[96..128].copy_from_slice(self.l2_head.as_ref());
+                raw_output[96..128].copy_from_slice(l2_head.as_ref());
                 let output_root = keccak256(raw_output);
 
                 if output_root.as_slice() != hint_data.as_ref() {
@@ -418,6 +419,18 @@ where
                     PreimageKey::new(*output_root, PreimageKeyType::Keccak256).into(),
                     raw_output.into(),
                 )?;
+            }
+            HintType::SafeL2Head => {
+                if hint_data.len() != 32 {
+                    anyhow::bail!("Invalid hint data length: {}", hint_data.len());
+                }
+
+                let hash: B256 = hint_data
+                    .as_ref()
+                    .try_into()
+                    .map_err(|e| anyhow!("Failed to convert bytes to B256: {e}"))?;
+
+                *self.l2_head.lock().await = hash;
             }
             HintType::L2StateNode => {
                 if hint_data.len() != 32 {

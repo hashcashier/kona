@@ -25,6 +25,8 @@ pub enum HintType {
     L2Code,
     /// A hint that specifies the preimage of the starting L2 output root on layer 2.
     StartingL2Output,
+    /// A hint that specifies the hash of the safe L2 head on layer 2.
+    SafeL2Head,
     /// A hint that specifies the state node in the L2 state trie.
     L2StateNode,
     /// A hint that specifies the proof on the path to an account in the L2 state trie.
@@ -56,6 +58,7 @@ impl TryFrom<&str> for HintType {
             "l2-transactions" => Ok(HintType::L2Transactions),
             "l2-code" => Ok(HintType::L2Code),
             "starting-l2-output" => Ok(HintType::StartingL2Output),
+            "safe-l2-head" => Ok(HintType::SafeL2Head),
             "l2-state-node" => Ok(HintType::L2StateNode),
             "l2-account-proof" => Ok(HintType::L2AccountProof),
             "l2-account-storage-proof" => Ok(HintType::L2AccountStorageProof),
@@ -76,6 +79,7 @@ impl From<HintType> for &str {
             HintType::L2Transactions => "l2-transactions",
             HintType::L2Code => "l2-code",
             HintType::StartingL2Output => "starting-l2-output",
+            HintType::SafeL2Head => "safe-l2-head",
             HintType::L2StateNode => "l2-state-node",
             HintType::L2AccountProof => "l2-account-proof",
             HintType::L2AccountStorageProof => "l2-account-storage-proof",
