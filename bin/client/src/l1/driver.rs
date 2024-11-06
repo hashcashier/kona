@@ -204,6 +204,7 @@ where
         H: TrieHinter + Send + Sync + Clone,
     {
         loop {
+            info!("advance_to_target iteration");
             // Check if we have reached the target block number.
             if self.l2_safe_head().block_info.number >= self.target_block_number {
                 info!(target: "client", "Derivation complete, reached L2 safe head.");
@@ -269,6 +270,7 @@ where
             };
 
             // Construct the block.
+            info!("OpBlock");
             let block = OpBlock {
                 header: header.clone(),
                 body: BlockBody {
@@ -284,10 +286,13 @@ where
             };
 
             // Update the safe head.
+            info!("l2_safe_head");
             self.l2_safe_head =
                 L2BlockInfo::from_block_and_genesis(&block, &self.pipeline.rollup_config.genesis)
                     .map_err(OracleProviderError::BlockInfo)?;
+            info!("l2_safe_head_header");
             self.l2_safe_head_header = header.clone().seal_slow();
+            info!("l2_safe_head_output_root");
             self.l2_safe_head_output_root = executor.compute_output_root()?;
         }
     }

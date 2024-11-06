@@ -12,6 +12,7 @@ use kona_preimage::{
 };
 use lru::LruCache;
 use spin::Mutex;
+use tracing::info;
 
 /// A wrapper around an [OracleReader] and [HintWriter] that stores a configurable number of
 /// responses in an [LruCache] for quick retrieval.
@@ -77,6 +78,7 @@ where
     HW: HintWriterClient + Sync,
 {
     async fn get(&self, key: PreimageKey) -> PreimageOracleResult<Vec<u8>> {
+        // info!("CachingOracle::get");
         let mut cache_lock = self.cache.lock();
         if let Some(value) = cache_lock.get(&key) {
             Ok(value.clone())

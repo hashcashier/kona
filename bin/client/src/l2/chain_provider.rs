@@ -13,6 +13,7 @@ use kona_preimage::{CommsClient, PreimageKey, PreimageKeyType};
 use op_alloy_consensus::{OpBlock, OpTxEnvelope};
 use op_alloy_genesis::{RollupConfig, SystemConfig};
 use op_alloy_protocol::{to_system_config, BatchValidationProvider, L2BlockInfo};
+use tracing::info;
 
 /// The oracle-backed L2 chain provider for the client program.
 #[derive(Debug, Clone)]
@@ -145,6 +146,7 @@ impl<T: CommsClient> TrieProvider for OracleL2ChainProvider<T> {
     type Error = OracleProviderError;
 
     fn trie_node_by_hash(&self, key: B256) -> Result<TrieNode, OracleProviderError> {
+        // info!("OracleL2ChainProvider::trie_node_by_hash");
         // On L2, trie node preimages are stored as keccak preimage types in the oracle. We assume
         // that a hint for these preimages has already been sent, prior to this call.
         kona_common::block_on(async move {
@@ -207,6 +209,7 @@ impl<T: CommsClient> TrieHinter for OracleL2ChainProvider<T> {
     }
 
     fn hint_account_proof(&self, address: Address, block_number: u64) -> Result<(), Self::Error> {
+        info!("OracleL2ChainProvider::hint_account_proof");
         kona_common::block_on(async move {
             self.oracle
                 .write(

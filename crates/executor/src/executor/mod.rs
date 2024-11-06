@@ -353,12 +353,15 @@ where
     /// - `Ok(output_root)`: The computed output root.
     /// - `Err(_)`: If an error occurred while computing the output root.
     pub fn compute_output_root(&mut self) -> ExecutorResult<B256> {
+        info!("compute_output_root");
         // Fetch the L2 to L1 message passer account from the cache or underlying trie.
         let storage_root = match self.trie_db.storage_roots().get(&L2_TO_L1_BRIDGE) {
             Some(storage_root) => {
+                info!("found {:?}", &storage_root);
                 storage_root.blinded_commitment().ok_or(TrieDBError::RootNotBlinded)?
             }
             None => {
+                info!("missing");
                 self.trie_db
                     .get_trie_account(&L2_TO_L1_BRIDGE)?
                     .ok_or(TrieDBError::MissingAccountInfo)?
@@ -366,6 +369,7 @@ where
             }
         };
 
+        info!("compute_output_root::parent_block_header");
         let parent_header = self.trie_db.parent_block_header();
 
         info!(

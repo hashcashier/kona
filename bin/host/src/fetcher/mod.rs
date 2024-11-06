@@ -437,6 +437,7 @@ where
                 )?;
             }
             HintType::L2AccountProof => {
+                tracing::info!("Fetcher::HintType::L2AccountProof");
                 if hint_data.len() != 8 + 20 {
                     anyhow::bail!("Invalid hint data length: {}", hint_data.len());
                 }

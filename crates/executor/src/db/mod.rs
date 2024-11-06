@@ -12,7 +12,7 @@ use revm::{
     primitives::{AccountInfo, Bytecode, HashMap, BLOCK_HASH_HISTORY},
     Database,
 };
-use tracing::debug;
+use tracing::{debug, info};
 
 mod account;
 pub use account::TrieAccount;
@@ -134,6 +134,7 @@ where
     /// ## Takes
     /// - `parent_block_header`: The parent block header of the current block.
     pub fn set_parent_block_header(&mut self, parent_block_header: Sealed<Header>) {
+        tracing::info!("set_parent_block_header");
         self.parent_block_header = parent_block_header;
     }
 
@@ -175,18 +176,23 @@ where
     /// - `Err(_)`: If the account could not be fetched.
     pub fn get_trie_account(&mut self, address: &Address) -> TrieDBResult<Option<TrieAccount>> {
         // Send a hint to the host to fetch the account proof.
+        info!("get_trie_account");
         self.hinter
             .hint_account_proof(*address, self.parent_block_header.number)
             .map_err(|e| TrieDBError::Provider(e.to_string()))?;
+        info!("get_trie_account::1");
 
         // Fetch the account from the trie.
         let hashed_address_nibbles = Nibbles::unpack(keccak256(address.as_slice()));
+        info!("get_trie_account::2");
         let Some(trie_account_rlp) = self.root_node.open(&hashed_address_nibbles, &self.fetcher)?
         else {
+            info!("get_trie_account::2-0");
             return Ok(None);
         };
 
         // Decode the trie account from the RLP bytes.
+        info!("get_trie_account::3");
         TrieAccount::decode(&mut trie_account_rlp.as_ref())
             .map_err(TrieNodeError::RLPError)
             .map_err(Into::into)
