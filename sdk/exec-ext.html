@@ -4,7 +4,7 @@
 <head>
     <!-- Book generated using mdBook -->
     <meta charset="UTF-8">
-    <title>Environment - The Kona Book</title>
+    <title>kona-executor Extensions - The Kona Book</title>
 
 
     <!-- Custom HTML head -->
@@ -91,7 +91,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="../intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../fpp-dev/intro.html"><strong aria-hidden="true">2.</strong> Fault Proof Program Development</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../fpp-dev/env.html" class="active"><strong aria-hidden="true">2.1.</strong> Environment</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../fpp-dev/targets.html"><strong aria-hidden="true">2.1.1.</strong> Supported Targets</a></li></ol></li><li class="chapter-item expanded "><a href="../fpp-dev/prologue.html"><strong aria-hidden="true">2.2.</strong> Prologue</a></li><li class="chapter-item expanded "><a href="../fpp-dev/execution.html"><strong aria-hidden="true">2.3.</strong> Execution</a></li><li class="chapter-item expanded "><a href="../fpp-dev/epilogue.html"><strong aria-hidden="true">2.4.</strong> Epilogue</a></li></ol></li><li class="chapter-item expanded "><a href="../sdk/intro.html"><strong aria-hidden="true">3.</strong> Kona SDK</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../sdk/fpvm-backend.html"><strong aria-hidden="true">3.1.</strong> FPVM Backend</a></li><li class="chapter-item expanded "><a href="../sdk/custom-backend.html"><strong aria-hidden="true">3.2.</strong> Custom Backend</a></li><li class="chapter-item expanded "><a href="../sdk/exec-ext.html"><strong aria-hidden="true">3.3.</strong> kona-executor Extensions</a></li><li class="chapter-item expanded "><a href="../sdk/pipeline/intro.html"><strong aria-hidden="true">3.4.</strong> kona-derive Pipeline</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../sdk/pipeline/providers.html"><strong aria-hidden="true">3.4.1.</strong> Custom Providers</a></li><li class="chapter-item expanded "><a href="../sdk/pipeline/stages.html"><strong aria-hidden="true">3.4.2.</strong> Stage Swapping</a></li><li class="chapter-item expanded "><a href="../sdk/pipeline/signaling.html"><strong aria-hidden="true">3.4.3.</strong> Signaling</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../glossary.html"><strong aria-hidden="true">4.</strong> Glossary</a></li><li class="chapter-item expanded "><a href="../CONTRIBUTING.html"><strong aria-hidden="true">5.</strong> Contributing</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../intro.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../fpp-dev/intro.html"><strong aria-hidden="true">2.</strong> Fault Proof Program Development</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../fpp-dev/env.html"><strong aria-hidden="true">2.1.</strong> Environment</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../fpp-dev/targets.html"><strong aria-hidden="true">2.1.1.</strong> Supported Targets</a></li></ol></li><li class="chapter-item expanded "><a href="../fpp-dev/prologue.html"><strong aria-hidden="true">2.2.</strong> Prologue</a></li><li class="chapter-item expanded "><a href="../fpp-dev/execution.html"><strong aria-hidden="true">2.3.</strong> Execution</a></li><li class="chapter-item expanded "><a href="../fpp-dev/epilogue.html"><strong aria-hidden="true">2.4.</strong> Epilogue</a></li></ol></li><li class="chapter-item expanded "><a href="../sdk/intro.html"><strong aria-hidden="true">3.</strong> Kona SDK</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../sdk/fpvm-backend.html"><strong aria-hidden="true">3.1.</strong> FPVM Backend</a></li><li class="chapter-item expanded "><a href="../sdk/custom-backend.html"><strong aria-hidden="true">3.2.</strong> Custom Backend</a></li><li class="chapter-item expanded "><a href="../sdk/exec-ext.html" class="active"><strong aria-hidden="true">3.3.</strong> kona-executor Extensions</a></li><li class="chapter-item expanded "><a href="../sdk/pipeline/intro.html"><strong aria-hidden="true">3.4.</strong> kona-derive Pipeline</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../sdk/pipeline/providers.html"><strong aria-hidden="true">3.4.1.</strong> Custom Providers</a></li><li class="chapter-item expanded "><a href="../sdk/pipeline/stages.html"><strong aria-hidden="true">3.4.2.</strong> Stage Swapping</a></li><li class="chapter-item expanded "><a href="../sdk/pipeline/signaling.html"><strong aria-hidden="true">3.4.3.</strong> Signaling</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../glossary.html"><strong aria-hidden="true">4.</strong> Glossary</a></li><li class="chapter-item expanded "><a href="../CONTRIBUTING.html"><strong aria-hidden="true">5.</strong> Contributing</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -160,7 +160,7 @@
                         <a href="https://github.com/anton-rs/kona" title="Git repository" aria-label="Git repository">
                             <i id="git-repository-button" class="fa fa-github"></i>
                         </a>
-                        <a href="https://github.com/anton-rs/kona/edit/main/book/src/fpp-dev/env.md" title="Suggest an edit" aria-label="Suggest an edit">
+                        <a href="https://github.com/anton-rs/kona/edit/main/book/src/sdk/exec-ext.md" title="Suggest an edit" aria-label="Suggest an edit">
                             <i id="git-edit-button" class="fa fa-edit"></i>
                         </a>
 
@@ -190,53 +190,54 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="environment"><a class="header" href="#environment">Environment</a></h1>
-<p>Before kicking off the development of your own <a href="../glossary.html#fault-proof-program">Fault Proof Program</a>
-,
-it's important to understand the environment that your program will be running in.</p>
-<p>The FPP runs on top of a custom FPVM target, which is typically a VM with a modified subset of an existing reduced instruction set architecture and a subset of Linux syscalls. The FPVM is designed to
-execute verifiable programs, and commonly modifies the instruction set it is derived from as well as the internal representation of memory to support verifiable memory access, <code>client</code> (program)
-communication with the <code>host</code> (the FPVM), and other implementation-specific features.</p>
-<h2 id="host---client-communication"><a class="header" href="#host---client-communication">Host &lt;-&gt; Client Communication</a></h2>
-<p>While the program is running on top of the FPVM, it is considered to be in the <code>client</code> role, while the VM is in the <code>host</code> role. The only way for the <code>client</code> and <code>host</code>
-to communicate with one another is synchronously through the <a href="../glossary.html#preimage-abi">Preimage ABI</a>
-(<a href="https://specs.optimism.io/experimental/fault-proof/index.html#pre-image-oracle">specification</a>).</p>
-<p>In order for the <code>client</code> to read from the <code>host</code>, the <code>read</code> and <code>write</code> syscalls are modified within the FPVM to allow the <code>client</code> to request preparation of and read foreign data.</p>
-<h3 id="reading"><a class="header" href="#reading">Reading</a></h3>
-<p>When the <code>client</code> wants to read data from the <code>host</code>, it must first send a "hint" to the <code>host</code> through the hint file descriptor, which signals a request for the <code>host</code> to prepare the data for reading. The <code>host</code> will then
-prepare the data, and send a hint acknowledgement back to the <code>client</code>. The <code>client</code> can then read the data from the host through the designated file descriptor.</p>
-<p>The preparation step ("hinting") is an optimization that allows the <code>host</code> to know ahead of time the intents of the <code>client</code> and the data it requires for execution. This can allow
-for lazy loading of data, and also prevent the need for unnecessary allocations within the <code>host</code>'s memory. This step is a no-op on-chain, and is only ran locally
-when the <code>host</code> is the native implementation of the FPVM.</p>
-<center>
-<pre class="mermaid">sequenceDiagram
-    Client-&gt;&gt;+Host: Hint preimage (no-op on-chain / read-only mode)
-    Host--&gt;&gt;-Client: Hint acknowledgement
-    Client--&gt;&gt;+Host: Preimage Request
-    Host--&gt;&gt;Host: Prepare Preimage
-    Host--&gt;&gt;-Client: Preimage Data
-</pre>
-</center>
-<h2 id="full-example"><a class="header" href="#full-example">Full Example</a></h2>
-<p>Below, we have a full architecture diagram of the <a href="https://github.com/ethereum-optimism/optimism/tree/develop/op-program"><code>op-program</code></a> (source: <a href="https://specs.optimism.io/experimental/fault-proof/index.html">fault proof specs</a>), the reference implementation for the OP Stack's Fault Proof Program,
-which has the objective of verifying claims about the state of an <a href="https://github.com/ethereum-optimism/optimism">OP Stack</a> layer two.</p>
-<p><img src="../assets/op-program-fpp.svg" alt="op-program-architecture" /></p>
-<p>In this program, execution and derivation of the L2 chain is performed within it, and ultimately the claimed state of the L2 chain is verified in the <a href="./prologue.html">prologue</a> stage.</p>
-<p>It communicates with the <code>host</code> for two reasons:</p>
-<ol>
-<li>To request preparation of L1 and L2 state data preimages.</li>
-<li>To read the L1 and L2 state data preimages that were prepared after the above requests.</li>
-</ol>
-<p>The <code>host</code> is responsible for:</p>
-<ol>
-<li>Preparing and maintaining a store of the L1 and L2 state data preimages, as well as localized bootstrap k/v pairs.</li>
-<li>Providing the L1 and L2 state data preimages to the <code>client</code> for reading.</li>
-</ol>
-<p>Other programs (<code>clients</code>) may have different requirements for communication with the <code>host</code>, but the above is a common pattern for programs built on top of a FPVMs. In general:</p>
-<ol>
-<li>The <code>client</code> program is a state machine that is responsible for bootstrapping itself from the inputs, executing the program logic, and verifying the outcome.</li>
-<li>The <code>host</code> is responsible for providing the <code>client</code> with data it wasn't bootstrapped with, and for executing the program itself.</li>
-</ol>
+                        <h1 id="kona-executor-extensions"><a class="header" href="#kona-executor-extensions"><code>kona-executor</code> Extensions</a></h1>
+<p>The <code>kona-executor</code> crate offers a to-spec, stateless implementation of the OP Stack STF. However, due to the
+power of <a href="https://github.com/bluealloy/revm"><code>revm</code></a>'s Handler abstractions, the logic of the STF can be easily modified.</p>
+<p>To register a custom handler, for example to add a custom precompile, modify the behavior of an EVM opcode,
+or change the fee handling, <code>StatelessL2BlockExecutorBuilder::with_handle_register</code> is your friend. It accepts a
+<a href="https://docs.rs/kona-executor/latest/kona_executor/type.KonaHandleRegister.html"><code>KonaHandleRegister</code></a>, which
+can be used to take full advantage of <a href="https://github.com/bluealloy/revm/blob/f57e3e639ee157c7e659e740bd175a7357003570/documentation/src/crates/revm/handler.md#handler"><code>revm</code>'s Handler API</a>.</p>
+<h2 id="example---custom-precompile"><a class="header" href="#example---custom-precompile">Example - Custom Precompile</a></h2>
+<pre><code class="language-rs">const MY_PRECOMPILE_ADDRESS: Address = u64_to_address(0xFF);
+
+fn my_precompile(input: &amp;Bytes, gas_limit: u64) -&gt; PrecompileResult {
+   Ok(PrecompileOutput::new(50, "hello, world!".as_bytes().into()))
+}
+
+fn custom_handle_register&lt;F, H&gt;(
+    handler: &amp;mut EvmHandler&lt;'_, (), &amp;mut State&lt;&amp;mut TrieDB&lt;F, H&gt;&gt;&gt;,
+) where
+   F: TrieProvider,
+   H: TrieHinter,
+{
+   let spec_id = handler.cfg.spec_id;
+
+   handler.pre_execution.load_precompiles = Arc::new(move || {
+      let mut ctx_precompiles = spec_to_generic!(spec_id, {
+         revm::optimism::load_precompiles::&lt;SPEC, (), &amp;mut State&lt;&amp;mut TrieDB&lt;F, H&gt;&gt;&gt;()
+      });
+
+      let precompile = PrecompileWithAddress(
+         MY_PRECOMPILE_ADDRESS,
+         Precompile::Standard(my_precompile)
+      );
+      ctx_precompiles.extend([precompile]);
+
+      ctx_precompiles
+   });
+}
+
+// - snip -
+
+let cfg = RollupConfig::default();
+let provider = ...;
+let hinter = ...;
+
+let executor = StatelessL2BlcokExecutor::builder(&amp;cfg, provider, hinter)
+   .with_parent_header(...)
+   .with_handle_register(custom_handle_register)
+   .build();
+</code></pre>
 <!-- External -->
 <!-- Kona links -->
 <!-- People -->
@@ -245,12 +246,12 @@ which has the objective of verifying claims about the state of an <a href="https
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                        <a rel="prev" href="../fpp-dev/intro.html" class="mobile-nav-chapters previous"
+                        <a rel="prev" href="../sdk/custom-backend.html" class="mobile-nav-chapters previous"
                             title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                             <i class="fa fa-angle-left"></i>
                         </a>
 
-                        <a rel="next prefetch" href="../fpp-dev/targets.html" class="mobile-nav-chapters next"
+                        <a rel="next prefetch" href="../sdk/pipeline/intro.html" class="mobile-nav-chapters next"
                             title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                             <i class="fa fa-angle-right"></i>
                         </a>
@@ -261,12 +262,12 @@ which has the objective of verifying claims about the state of an <a href="https
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                <a rel="prev" href="../fpp-dev/intro.html" class="nav-chapters previous" title="Previous chapter"
+                <a rel="prev" href="../sdk/custom-backend.html" class="nav-chapters previous" title="Previous chapter"
                     aria-label="Previous chapter" aria-keyshortcuts="Left">
                     <i class="fa fa-angle-left"></i>
                 </a>
 
-                <a rel="next prefetch" href="../fpp-dev/targets.html" class="nav-chapters next" title="Next chapter"
+                <a rel="next prefetch" href="../sdk/pipeline/intro.html" class="nav-chapters next" title="Next chapter"
                     aria-label="Next chapter" aria-keyshortcuts="Right">
                     <i class="fa fa-angle-right"></i>
                 </a>
